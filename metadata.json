@@ -1,0 +1,6 @@
+{
+  "name": "حضورك | نظام الحضور والغياب الأكاديمي الذكي وNFC",
+  "description": "نظام أكاديمي متكامل لتسجيل الحضور والغياب بتقنية NFC للطلاب وأعضاء هيئة التدريس، مع الجداول الدراسية، المواد، كشوف النتائج، والإشعارات اللحظية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
