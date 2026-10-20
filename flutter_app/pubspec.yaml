@@ -1,0 +1,33 @@
+name: almaaqal_nfc_attendance
+description: "نظام الحضور والغياب الأكاديمي الذكي بتقنية NFC لجامعة المعقل الأهلية"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  
+  # State Management & Local Storage
+  provider: ^6.1.2
+  shared_preferences: ^2.2.3
+
+  # NFC Reader & Hardware Integration (Google Play Compliant)
+  nfc_manager: ^3.3.0
+
+  # UI, Fonts & Internationalization
+  google_fonts: ^6.2.1
+  intl: ^0.19.0
+  flutter_spinkit: ^5.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

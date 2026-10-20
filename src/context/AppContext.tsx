@@ -18,7 +18,7 @@ interface AppContextType {
   activeRole: UserRole;
   activeTab: 'home' | 'schedule' | 'subjects' | 'profile';
   setActiveTab: (tab: 'home' | 'schedule' | 'subjects' | 'profile') => void;
-  login: (role: UserRole, studentAcademicId?: string) => void;
+  loginWithUser: (user: User) => void;
   logout: () => void;
   switchRole: () => void;
   
@@ -31,6 +31,16 @@ interface AppContextType {
     subjectId: string,
     method?: 'nfc' | 'manual'
   ) => { success: boolean; message: string; record?: AttendanceRecord };
+  
+  // Teacher Admin Editing Permissions
+  updateAttendanceStatus: (recordId: string, newStatus: AttendanceStatus, notes?: string) => void;
+  deleteAttendanceRecord: (recordId: string) => void;
+  removeAttendanceForStudent: (studentAcademicId: string, subjectId: string) => { success: boolean; message: string };
+  addScheduleLecture: (lecture: Omit<ScheduleItem, 'id'>) => void;
+  updateScheduleLecture: (id: string, updated: Partial<ScheduleItem>) => void;
+  deleteScheduleLecture: (id: string) => void;
+  updateSubjectDetails: (id: string, updated: Partial<SubjectItem>) => void;
+  updateSubjectGrades: (subjectId: string, grades: NonNullable<SubjectItem['grades']>) => void;
   
   // Notifications
   notifications: NotificationItem[];
@@ -51,13 +61,33 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [activeRole, setActiveRole] = useState<UserRole>('student');
   const [activeTab, setActiveTab] = useState<'home' | 'schedule' | 'subjects' | 'profile'>('home');
   const [subjects, setSubjects] = useState<SubjectItem[]>(initialSubjects);
-  const [schedule] = useState<ScheduleItem[]>(weeklySchedule);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(initialAttendanceRecords);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>(weeklySchedule);
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() => {
+    if (typeof window === 'undefined') return initialAttendanceRecords;
+    try {
+      const saved = localStorage.getItem('almaaqal_attendance_records');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {
+      // fallback
+    }
+    return initialAttendanceRecords;
+  });
+
+  // Sync attendance records to storage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && attendanceRecords.length > 0) {
+      try {
+        localStorage.setItem('almaaqal_attendance_records', JSON.stringify(attendanceRecords));
+      } catch (e) {
+        console.warn('Failed saving attendance:', e);
+      }
+    }
+  }, [attendanceRecords]);
   const [activeToast, setActiveToast] = useState<ToastData | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
 
@@ -71,58 +101,63 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [activeToast]);
 
-  const login = (role: UserRole, studentAcademicId?: string) => {
-    setActiveRole(role);
-    if (role === 'student') {
-      if (studentAcademicId) {
-        const found = almaaqalStudents.find(s => s.academicId === studentAcademicId || s.name.includes(studentAcademicId));
-        if (found) {
-          setCurrentUser({
-            id: found.id,
-            name: found.name,
-            role: 'student',
-            email: `${found.academicId}@almaaqal.edu.iq`,
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-            academicId: found.academicId,
-            nfcCardId: found.nfcCardId,
-            department: found.department,
-            college: 'كلية الهندسة',
-            university: 'جامعة المعقل',
-            phone: '+964 770 000 0000',
-            stage: `${found.stage} (${found.shift})`,
-            section: 'الشعبة العامة',
-            gpa: 3.84,
-            totalCredits: 132,
-          });
-        } else {
-          setCurrentUser(mockStudent);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem('almaaqal_current_session');
+      if (raw) {
+        const u = JSON.parse(raw);
+        if (u && u.avatar && (u.avatar.includes('unsplash.com') || u.avatar.includes('photo-'))) {
+          u.avatar = '';
+          localStorage.setItem('almaaqal_current_session', JSON.stringify(u));
         }
-      } else {
-        setCurrentUser(mockStudent);
+        return u;
       }
-    } else {
-      setCurrentUser(mockTeacher);
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [activeRole, setActiveRole] = useState<UserRole>(() => {
+    if (typeof window === 'undefined') return 'student';
+    try {
+      const raw = localStorage.getItem('almaaqal_current_session');
+      if (raw) {
+        const u = JSON.parse(raw);
+        return u.role || 'student';
+      }
+    } catch {
+      // fallback
+    }
+    return 'student';
+  });
+
+  const loginWithUser = (user: User) => {
+    setCurrentUser(user);
+    setActiveRole(user.role);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('almaaqal_current_session', JSON.stringify(user));
     }
     setActiveTab('home');
 
     sendInstantNotification(
       'مرحباً بك في نظام حضورك | جامعة المعقل 🎓',
-      `تم تسجيل الدخول بنجاح بحساب ${role === 'student' ? 'الطالب' : 'التدريسي'}.`,
+      `تم تسجيل الدخول بنجاح بحساب ${user.role === 'student' ? 'الطالب' : 'التدريسي'} (${user.name}).`,
       'schedule_alert'
     );
   };
 
   const logout = () => {
     setCurrentUser(null);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('almaaqal_current_session');
+    }
     setActiveTab('home');
   };
 
   const switchRole = () => {
-    if (activeRole === 'student') {
-      login('teacher');
-    } else {
-      login('student');
-    }
+    logout();
   };
 
   const toggleSound = () => {
@@ -184,19 +219,50 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     subjectId: string,
     method: 'nfc' | 'manual' = 'nfc'
   ) => {
+    // 1. Strict Security: Student can ONLY register attendance for themselves and only with their matching card
+    if (activeRole === 'student') {
+      if (currentUser && studentData.academicId !== currentUser.academicId) {
+        return {
+          success: false,
+          message: 'مرفوض أمنياً: لا يمكنك تسجيل الحضور لزملائك، يحق لك تسجيل حضور بطاقتك الشخصية فقط.',
+        };
+      }
+      if (currentUser && studentData.nfcTag && studentData.nfcTag !== currentUser.nfcCardId) {
+        return {
+          success: false,
+          message: 'البطاقة المقربة غير متوافقة مع بطاقتك الجامعية المسجلة في النظام.',
+        };
+      }
+    }
+
     const targetSubject = subjects.find(s => s.id === subjectId) || subjects[0];
     const todayStr = new Date().toISOString().split('T')[0];
     const nowTimeStr = new Date().toLocaleTimeString('ar-IQ', { hour: '2-digit', minute: '2-digit' });
 
     // Check if already registered today for this subject
-    const alreadyRegistered = attendanceRecords.some(
-      r => r.studentId === studentData.id && r.subjectId === subjectId && r.date === todayStr
+    const alreadyRegistered = attendanceRecords.find(
+      r => (r.studentId === studentData.id || r.studentAcademicId === studentData.academicId) && r.subjectId === targetSubject.id && r.date === todayStr
     );
 
     if (alreadyRegistered) {
+      if (soundEnabled) {
+        playNfcSuccessSound();
+      }
+      sendInstantNotification(
+        `تأكيد قراءة شريحة NFC بنجاح ✅`,
+        `الطالب (${studentData.name}) مسجل حاضر بالفعل لمقرر "${targetSubject.name}" في تمام ${alreadyRegistered.time}.`,
+        'attendance_success',
+        {
+          subjectName: targetSubject.name,
+          room: 'قاعة الخوارزمي (302)',
+          status: 'present',
+          nfcTag: studentData.nfcTag,
+        }
+      );
       return {
-        success: false,
-        message: `تم تسجيل حضور الطالب ${studentData.name} بالفعل لهذه المحاضرة اليوم!`,
+        success: true,
+        message: `تم التحقق من شريحة NFC! الطالب (${studentData.name}) حاضر بالفعل لهذه المحاضرة اليوم (${alreadyRegistered.time}).`,
+        record: alreadyRegistered,
       };
     }
 
@@ -272,6 +338,121 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
+  // --- Teacher Administrative Handlers ---
+  const updateAttendanceStatus = (recordId: string, newStatus: AttendanceStatus, notes?: string) => {
+    setAttendanceRecords(prev =>
+      prev.map(r => {
+        if (r.id === recordId) {
+          return {
+            ...r,
+            status: newStatus,
+            notes: notes !== undefined ? notes : r.notes,
+          };
+        }
+        return r;
+      })
+    );
+    sendInstantNotification(
+      'تم تعديل حالة الحضور ✏️',
+      `قام التدريسي بتعديل حالة السجل إلى (${newStatus === 'present' ? 'حاضر' : newStatus === 'late' ? 'متأخر' : newStatus === 'absent' ? 'غائب' : 'بعذر'}).`,
+      'attendance_warning'
+    );
+  };
+
+  const deleteAttendanceRecord = (recordId: string) => {
+    setAttendanceRecords(prev => prev.filter(r => r.id !== recordId));
+    sendInstantNotification('تم حذف سجل الحضور 🗑️', 'تم إزالة السجل المحدد من قاعدة البيانات.');
+  };
+
+  const removeAttendanceForStudent = (studentAcademicId: string, subjectId: string) => {
+    if (activeRole !== 'teacher') {
+      return {
+        success: false,
+        message: 'إلغاء الحضور من الصلاحيات الإدارية الحصرية للتدريسي فقط.',
+      };
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const record = attendanceRecords.find(
+      r => r.studentAcademicId === studentAcademicId && r.subjectId === subjectId && r.date === todayStr
+    );
+
+    if (!record) {
+      return {
+        success: false,
+        message: 'لا يوجد تسجيل حضور لهذا الطالب اليوم في هذه المادة.',
+      };
+    }
+
+    setAttendanceRecords(prev => prev.filter(r => r.id !== record.id));
+
+    // Decrement attended lectures count
+    setSubjects(prev =>
+      prev.map(sub => {
+        if (sub.id === subjectId) {
+          const newAttended = Math.max(0, sub.attendedLectures - 1);
+          const newPercentage = Math.round((newAttended / (sub.totalLectures || 1)) * 100);
+          return {
+            ...sub,
+            attendedLectures: newAttended,
+            attendancePercentage: Math.min(100, newPercentage),
+          };
+        }
+        return sub;
+      })
+    );
+
+    sendInstantNotification(
+      'تم إلغاء تسجيل الحضور ❌',
+      `قام التدريسي بإلغاء حضور الطالب (${record.studentName}) لمادة "${record.subjectName}".`,
+      'attendance_warning'
+    );
+
+    return {
+      success: true,
+      message: `تم إلغاء حضور الطالب (${record.studentName}) وتعديل حالته إلى غائب بنجاح.`,
+    };
+  };
+
+  const addScheduleLecture = (lecture: Omit<ScheduleItem, 'id'>) => {
+    const newItem: ScheduleItem = {
+      ...lecture,
+      id: `sch_${Date.now()}`,
+    };
+    setSchedule(prev => [...prev, newItem]);
+    sendInstantNotification('تمت إضافة محاضرة جديدة للجدول 📅', `المادة: ${lecture.subjectName} - يوم ${lecture.day}.`);
+  };
+
+  const updateScheduleLecture = (id: string, updated: Partial<ScheduleItem>) => {
+    setSchedule(prev => prev.map(item => (item.id === id ? { ...item, ...updated } : item)));
+    sendInstantNotification('تم تحديث الجدول الدراسي ✏️', 'تم حفظ التعديلات الجديدة على مواعيد وقاعات المحاضرات.');
+  };
+
+  const deleteScheduleLecture = (id: string) => {
+    setSchedule(prev => prev.filter(item => item.id !== id));
+    sendInstantNotification('تم حذف محاضرة من الجدول 🗑️', 'تم تحديث جدول المحاضرات الأسبوعي.');
+  };
+
+  const updateSubjectDetails = (id: string, updated: Partial<SubjectItem>) => {
+    setSubjects(prev => prev.map(sub => (sub.id === id ? { ...sub, ...updated } : sub)));
+    sendInstantNotification('تم تعديل بيانات المادة الدراسية 📚', 'تم حفظ التعديلات على المقرر الدراسي.');
+  };
+
+  const updateSubjectGrades = (subjectId: string, grades: NonNullable<SubjectItem['grades']>) => {
+    setSubjects(prev =>
+      prev.map(sub => {
+        if (sub.id === subjectId) {
+          return {
+            ...sub,
+            grades,
+          };
+        }
+        return sub;
+      })
+    );
+    sendInstantNotification('تم تعديل ورصد الدرجات 📊', 'تم تحديث درجات السعي والتقييمات للطلبة.');
+  };
+
   const markNotificationAsRead = (id: string) => {
     setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)));
   };
@@ -293,13 +474,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeRole,
         activeTab,
         setActiveTab,
-        login,
+        loginWithUser,
         logout,
         switchRole,
         subjects,
         schedule,
         attendanceRecords,
         registerAttendance,
+        updateAttendanceStatus,
+        deleteAttendanceRecord,
+        removeAttendanceForStudent,
+        addScheduleLecture,
+        updateScheduleLecture,
+        deleteScheduleLecture,
+        updateSubjectDetails,
+        updateSubjectGrades,
         notifications,
         unreadNotificationsCount,
         markNotificationAsRead,

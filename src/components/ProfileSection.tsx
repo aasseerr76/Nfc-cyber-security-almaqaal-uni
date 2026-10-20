@@ -14,6 +14,7 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react';
+import { UserAvatar } from './UserAvatar';
 
 export const ProfileSection: React.FC = () => {
   const {
@@ -85,10 +86,11 @@ export const ProfileSection: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3.5">
-          <img
-            src={currentUser.avatar}
-            alt={currentUser.name}
-            className="w-14 h-14 rounded-2xl object-cover border-2 border-indigo-400/60 shadow-md"
+          <UserAvatar
+            name={currentUser.name}
+            role={activeRole}
+            avatar={currentUser.avatar}
+            size="lg"
           />
           <div>
             <h4 className="text-base font-black text-white">{currentUser.name}</h4>
@@ -119,14 +121,90 @@ export const ProfileSection: React.FC = () => {
             <span className="font-semibold">{activeRole === 'student' ? currentUser.stage : currentUser.title}</span>
           </div>
           <div className="flex justify-between py-1 border-b border-slate-800">
-            <span className="text-slate-400">البريد الأكاديمي:</span>
-            <span className="font-mono">{currentUser.email}</span>
+            <span className="text-slate-400">البريد الأكاديمي (الرقم المعرفي):</span>
+            <span className="font-mono text-indigo-300 font-bold">{currentUser.email}</span>
           </div>
+          {activeRole === 'student' && (
+            <div className="flex justify-between py-1 border-b border-slate-800">
+              <span className="text-slate-400">حالة الحساب والأمان:</span>
+              <span className="font-sans text-emerald-400 font-semibold">حساب معتمد ومحمي ✅</span>
+            </div>
+          )}
           <div className="flex justify-between py-1">
             <span className="text-slate-400">الهاتف:</span>
             <span className="font-mono">{currentUser.phone}</span>
           </div>
         </div>
+      </div>
+
+      {/* Role & Permissions Scope Card */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs">
+        <div className="flex items-center justify-between">
+          <h4 className="font-bold text-white flex items-center gap-1.5">
+            <GraduationCap className="w-4 h-4 text-indigo-400" />
+            <span>صلاحيات الحساب المعتمدة</span>
+          </h4>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+            activeRole === 'student'
+              ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+              : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+          }`}>
+            {activeRole === 'student' ? 'صلاحيات طالب (محددة)' : 'صلاحيات تدريسي (إدارية كاملة)'}
+          </span>
+        </div>
+
+        {activeRole === 'student' ? (
+          <div className="space-y-2 pt-1 text-[11px]">
+            <p className="text-slate-400 leading-relaxed">
+              وفقاً لسياسة النظام الصارمة، يُسمح للطالب حصراً بالصلاحيات التالية:
+            </p>
+            <div className="grid grid-cols-1 gap-1.5">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span className="font-semibold">الاطلاع على الجدول الدراسي:</span>
+                <span className="text-slate-400">مواعيد القاعات والمحاضرات بدون صلاحية التعديل.</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span className="font-semibold">الاطلاع على الغيابات والحضور:</span>
+                <span className="text-slate-400">متابعة نسب الحضور وسجل المحاضرات والرسوم البيانية.</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-950/70 border border-slate-800 text-slate-200">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span className="font-semibold">تسجيل الحضور عبر NFC:</span>
+                <span className="text-slate-400">تمرير بطاقة الهوية الذكية لتوثيق الحضور الفوري.</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-rose-950/20 border border-rose-500/20 text-rose-300">
+                <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                <span className="font-semibold">تعديل البيانات محظور:</span>
+                <span className="text-rose-300/80">تعديل الغيابات أو الجدول أو المواد محصور بالتدريسي فقط.</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2 pt-1 text-[11px]">
+            <p className="text-slate-400 leading-relaxed">
+              يمتلك التدريسي كامل الصلاحيات الإدارية الأكاديمية:
+            </p>
+            <div className="grid grid-cols-1 gap-1.5">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-950/30 border border-purple-500/20 text-purple-200">
+                <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                <span className="font-semibold">تعديل الحضور والغياب:</span>
+                <span className="text-slate-300">تغيير حالة الطالب، قبول الأعذار، وحذف السجلات.</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-950/30 border border-purple-500/20 text-purple-200">
+                <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                <span className="font-semibold">إدارة الجدول الدراسي:</span>
+                <span className="text-slate-300">إضافة وتعديل وحذف المحاضرات الأسبوعية والقاعات.</span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-purple-950/30 border border-purple-500/20 text-purple-200">
+                <span className="w-2 h-2 rounded-full bg-purple-400"></span>
+                <span className="font-semibold">المواد والدرجات:</span>
+                <span className="text-slate-300">تعديل بيانات المقررات ورصد درجات السعي والامتحان النهائي.</span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Preferences & Actions */}
@@ -165,17 +243,17 @@ export const ProfileSection: React.FC = () => {
           </button>
         </div>
 
-        {/* Switch Account */}
+        {/* Logout & Switch Account */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-800">
           <div className="flex items-center gap-2 text-xs text-slate-300">
-            <Repeat className="w-4 h-4 text-purple-400" />
-            <span>تبديل المسار التجريبي</span>
+            <LogOut className="w-4 h-4 text-rose-400" />
+            <span>تسجيل الخروج من الحساب</span>
           </div>
           <button
-            onClick={switchRole}
-            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-semibold rounded-xl border border-slate-700"
+            onClick={logout}
+            className="px-3 py-1 bg-rose-950/40 hover:bg-rose-900/50 text-rose-300 text-xs font-semibold rounded-xl border border-rose-500/30"
           >
-            {activeRole === 'student' ? 'الدخول كتدريسي' : 'الدخول كطالب'}
+            تسجيل الخروج
           </button>
         </div>
       </div>

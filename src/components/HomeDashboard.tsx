@@ -6,16 +6,22 @@ import {
   Clock, 
   TrendingUp, 
   ShieldCheck,
-  Calendar,
-  Radio
+  Radio,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 import { IntegratedNfcAttendanceGate } from './IntegratedNfcAttendanceGate';
+import { AttendancePerformanceChart } from './AttendancePerformanceChart';
+import { UserAvatar } from './UserAvatar';
 
 export const HomeDashboard: React.FC = () => {
   const {
     currentUser,
     activeRole,
+    subjects,
     attendanceRecords,
+    updateAttendanceStatus,
+    deleteAttendanceRecord,
   } = useApp();
 
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -24,14 +30,14 @@ export const HomeDashboard: React.FC = () => {
 
   // Calculate attendance statistics
   const userRecords = activeRole === 'student'
-    ? attendanceRecords.filter(r => r.studentId === currentUser.id)
+    ? attendanceRecords.filter(r => r.studentId === currentUser.id || r.studentAcademicId === currentUser.academicId)
     : attendanceRecords;
 
   const totalAttended = userRecords.filter(r => r.status === 'present').length;
   const totalLate = userRecords.filter(r => r.status === 'late').length;
   const totalAbsent = userRecords.filter(r => r.status === 'absent').length;
   const totalCount = totalAttended + totalLate + totalAbsent || 1;
-  const attendanceRate = Math.round(((totalAttended + totalLate * 0.5) / totalCount) * 100) || 94;
+  const attendanceRate = Math.round(((totalAttended + totalLate * 0.5) / totalCount) * 100);
 
   const filteredRecords = userRecords.filter(rec => {
     if (filterStatus === 'all') return true;
@@ -43,10 +49,11 @@ export const HomeDashboard: React.FC = () => {
       {/* User Header & Academic Info */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl flex items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <img
-            src={currentUser.avatar}
-            alt={currentUser.name}
-            className="w-14 h-14 rounded-2xl object-cover border-2 border-indigo-500/40 shadow-md"
+          <UserAvatar
+            name={currentUser.name}
+            role={activeRole}
+            avatar={currentUser.avatar}
+            size="lg"
           />
           <div>
             <div className="flex items-center gap-2">
@@ -91,6 +98,15 @@ export const HomeDashboard: React.FC = () => {
           <span className="text-2xl font-black text-rose-400 font-mono">{totalAbsent}</span>
         </div>
       </div>
+
+      {/* Recharts Visual Performance Analytics */}
+      <AttendancePerformanceChart
+        subjects={subjects}
+        attendanceRecords={attendanceRecords}
+        activeRole={activeRole}
+        currentUserId={currentUser.id}
+        currentUserAcademicId={currentUser.academicId}
+      />
 
       {/* Integrated NFC Attendance Gateway (Hero feature) */}
       <IntegratedNfcAttendanceGate />
@@ -143,7 +159,14 @@ export const HomeDashboard: React.FC = () => {
                 className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
               >
                 <div>
-                  <h4 className="font-bold text-slate-200">{rec.subjectName}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-slate-200">{rec.subjectName}</h4>
+                    {activeRole === 'teacher' && (
+                      <span className="text-[11px] font-bold text-indigo-300 bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/20">
+                        {rec.studentName} ({rec.studentAcademicId})
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 text-slate-400 text-[11px] mt-0.5 font-mono">
                     <span>{rec.date}</span>
                     <span>•</span>
@@ -153,22 +176,60 @@ export const HomeDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  {rec.status === 'present' ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-bold text-[11px]">
-                      <CheckCircle2 className="w-3 h-3" />
-                      حاضر (NFC)
-                    </span>
-                  ) : rec.status === 'late' ? (
-                    <span className="inline-flex items-center gap-1 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full font-bold text-[11px]">
-                      <Clock className="w-3 h-3" />
-                      متأخر
-                    </span>
+                <div className="flex items-center gap-2">
+                  {activeRole === 'teacher' ? (
+                    /* Teacher Editing Controls */
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={rec.status}
+                        onChange={e => updateAttendanceStatus(rec.id, e.target.value as any)}
+                        className={`text-xs font-bold rounded-xl px-2.5 py-1.5 border focus:outline-none cursor-pointer transition-colors ${
+                          rec.status === 'present'
+                            ? 'bg-emerald-950/60 text-emerald-300 border-emerald-500/40'
+                            : rec.status === 'late'
+                            ? 'bg-amber-950/60 text-amber-300 border-amber-500/40'
+                            : rec.status === 'excused'
+                            ? 'bg-blue-950/60 text-blue-300 border-blue-500/40'
+                            : 'bg-rose-950/60 text-rose-300 border-rose-500/40'
+                        }`}
+                      >
+                        <option value="present">حاضر (NFC)</option>
+                        <option value="late">متأخر</option>
+                        <option value="absent">غائب</option>
+                        <option value="excused">بعذر رسمي</option>
+                      </select>
+
+                      <button
+                        onClick={() => deleteAttendanceRecord(rec.id)}
+                        className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
+                        title="حذف هذا السجل"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   ) : (
-                    <span className="inline-flex items-center gap-1 text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full font-bold text-[11px]">
-                      <XCircle className="w-3 h-3" />
-                      غائب
-                    </span>
+                    /* Student Read-Only Badges */
+                    rec.status === 'present' ? (
+                      <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full font-bold text-[11px]">
+                        <CheckCircle2 className="w-3 h-3" />
+                        حاضر (NFC)
+                      </span>
+                    ) : rec.status === 'late' ? (
+                      <span className="inline-flex items-center gap-1 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full font-bold text-[11px]">
+                        <Clock className="w-3 h-3" />
+                        متأخر
+                      </span>
+                    ) : rec.status === 'excused' ? (
+                      <span className="inline-flex items-center gap-1 text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-1 rounded-full font-bold text-[11px]">
+                        <ShieldCheck className="w-3 h-3" />
+                        بعذر
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-rose-400 bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full font-bold text-[11px]">
+                        <XCircle className="w-3 h-3" />
+                        غائب
+                      </span>
+                    )
                   )}
                 </div>
               </div>

@@ -26,9 +26,9 @@ export const Navbar: React.FC = () => {
               <Radio className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-black text-white text-base">حضورك</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              <div className="flex items-center gap-2">
+                <span className="font-black text-white text-xs sm:text-sm tracking-tight">نظام الحضور في جامعة المعقل الاهلية</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
                   {activeRole === 'student' ? 'الطالب' : 'التدريسي'}
                 </span>
               </div>
@@ -49,15 +49,6 @@ export const Navbar: React.FC = () => {
                   {unreadNotificationsCount}
                 </span>
               )}
-            </button>
-
-            {/* Switch Role */}
-            <button
-              onClick={switchRole}
-              className="p-2 rounded-xl bg-slate-800 text-slate-300 hover:text-indigo-400 border border-slate-700 transition-colors"
-              title={activeRole === 'student' ? 'التبديل إلى مسار التدريسي' : 'التبديل إلى مسار الطالب'}
-            >
-              <Repeat className="w-4 h-4" />
             </button>
 
             {/* Logout */}

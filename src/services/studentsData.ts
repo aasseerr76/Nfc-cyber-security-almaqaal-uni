@@ -2,6 +2,8 @@ export interface AlmaaqalStudent {
   id: string;
   name: string;
   academicId: string; // الرقم المعرفي الرسمي
+  email: string; // البريد الأكاديمي: [الرقم المعرفي]@almaaqal.edu.iq
+  password: string; // كلمة المرور الخاصة بالطالب
   stage: 'المرحلة الثانية' | 'المرحلة الثالثة';
   shift: 'صباحي' | 'مسائي';
   department: string;
@@ -9,8 +11,19 @@ export interface AlmaaqalStudent {
   avatar?: string;
 }
 
+interface RawAlmaaqalStudent {
+  id: string;
+  name: string;
+  academicId: string;
+  stage: 'المرحلة الثانية' | 'المرحلة الثالثة';
+  shift: 'صباحي' | 'مسائي';
+  department: string;
+  nfcCardId: string;
+  avatar?: string;
+}
+
 // قائمة طلاب جامعة المعقل - مستخرجة من السجلات الرسمية
-export const almaaqalStudents: AlmaaqalStudent[] = [
+const rawStudentsList: RawAlmaaqalStudent[] = [
   // --- المرحلة الثانية - صباحي ---
   { id: 'mq_1989616052', name: 'ابرار منخي لفته كزار', academicId: '1989616052', stage: 'المرحلة الثانية', shift: 'صباحي', department: 'هندسة الذكاء الاصطناعي', nfcCardId: 'NFC-MQ-1989616052' },
   { id: 'mq_8153029478', name: 'ابراهيم محمد علي جاسم', academicId: '8153029478', stage: 'المرحلة الثانية', shift: 'صباحي', department: 'هندسة الذكاء الاصطناعي', nfcCardId: 'NFC-MQ-8153029478' },
@@ -113,3 +126,10 @@ export const almaaqalStudents: AlmaaqalStudent[] = [
   { id: 'mq_2529745412', name: 'ريهام عبدالكاظم كريدي عنيتك', academicId: '2529745412', stage: 'المرحلة الثالثة', shift: 'مسائي', department: 'هندسة السيطرة والحاسبات', nfcCardId: 'NFC-MQ-2529745412' },
   { id: 'mq_4703799761', name: 'زهراء عبد الرزاق عبد الحكيم موسى', academicId: '4703799761', stage: 'المرحلة الثالثة', shift: 'مسائي', department: 'هندسة الذكاء الاصطناعي', nfcCardId: 'NFC-MQ-4703799761' },
 ];
+
+// تصدير قائمة الطلاب المعتمدة مع ربط الرقم المعرفي كبريد إلكتروني وكلمة مرور أكاديمية
+export const almaaqalStudents: AlmaaqalStudent[] = rawStudentsList.map(stu => ({
+  ...stu,
+  email: `${stu.academicId}@almaaqal.edu.iq`,
+  password: `Mq@${stu.academicId}`,
+}));

@@ -5,7 +5,7 @@ export interface User {
   name: string;
   role: UserRole;
   email: string;
-  avatar: string;
+  avatar?: string;
   academicId: string;
   nfcCardId: string;
   department: string;
